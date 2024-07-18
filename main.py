@@ -42,7 +42,7 @@ from PIL import Image
 
 
 def fading_gradient(size):
-    blank = np.full((size, size), 0, dtype=float)
+    blank = np.full((size, size), 1, dtype=float)
     for x in range(size):
         for y in range(size):
             value = (size - y) / size
@@ -51,10 +51,9 @@ def fading_gradient(size):
 
 
 def rising_gradient(size):
-    blank = np.full((size, size), 1, dtype=float)
+    blank = np.full((size, size), 0, dtype=float)
     for x in range(size):
         for y in range(size):
-            # value = np.sin(((y / size) * np.pi/2) - 0.5)
             value = y / size
             blank[x, y] = value
     return blank
@@ -79,46 +78,26 @@ def precompute_gradients(radius, iterations, offset):
     return gradients
 
 
-def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations, gradients, seed, fading, rising):
+def generate_tilemap(tiles, size, radius, domain_offset, iterations, gradients, fading, rising):
     tilemaps = {}
-    seeds = []
-    min_arr = []
-    max_arr = []
     for i in range(tiles):
-        variable_seed = seed * (i + 1)
-        seeds.append(variable_seed)
         if i == 0:
-            # influence = np.full((size, size), 1, dtype=float)
-            first_tile = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+            first_tile = generate_heightmap(size, radius, domain_offset, iterations, gradients)
             tilemap = first_tile
         elif i % 2 != 0:
-            second_tile = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+            second_tile = generate_heightmap(size, radius, domain_offset, iterations, gradients)
             tilemap = merge_tiles(tilemaps[i - 1], second_tile, fading, rising)
         elif i % 2 == 0:
             tilemap = second_tile
-
         tilemaps[i] = tilemap
-
-    #     # getting the minimum and maximum of each tile
-    #     min_arr.append(np.min(tilemaps[i]))
-    #     max_arr.append(np.max(tilemaps[i]))
-    #
-    #     # getting the minimum and maximum among the three tiles
-    #
-    # tot_min = np.min(min_arr)
-    # tot_max = np.max(max_arr)
-
-
-
     return tilemaps
 
 
-def generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seed):
-    random.seed(seed)
-    np.random.seed(seed)
+def generate_heightmap(size, radius, domain_offset, iterations, gradients):
+
 
     # initializing the heightmap with a base terrain height
-    heightmap = base_height
+    heightmap = np.full((size, size), 255, dtype=float)
 
     # midpoint of the map
     halfsize = [size // 2, size // 2]
@@ -186,20 +165,25 @@ def save_heightmap_as_image(heightmap, filename):
     image.save(filename)
 
 
-tile_size = 200  # size of the map
+tile_size = 100  # size of the map
 base_height = np.full((tile_size, tile_size), 255, dtype=float)  # initial height of the map
-radius = 200  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
+radius = 100  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
 offset = 100  # how much you want to dig down or bring up (negative numbers have better results
-domain_offset = 0  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
-iterations = 8  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 1  # seed of the random number generator
+domain_offset = tile_size // 2  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
+iterations = 8 # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
+seed = 64589  # seed of the random number generator
 tiles = 5
+random.seed(seed)
+np.random.seed(seed)
+
 
 fading_gradient = fading_gradient(tile_size)
 rising_gradient = rising_gradient(tile_size)
 
 gradients = precompute_gradients(radius, iterations, offset)
-tilemap = generate_tilemap(tiles, tile_size, base_height, radius, domain_offset, iterations, gradients, seed, fading_gradient, rising_gradient)
+tilemap = generate_tilemap(tiles, tile_size, radius, domain_offset, iterations, gradients, fading_gradient, rising_gradient)
+
+
 
 name = random.randint(0, 100000)
 # z = np.array(heightmap)
