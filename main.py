@@ -37,13 +37,36 @@ from PIL import Image
 # precompute_gradients basically just calculates gradients for each and every radius that would be generated just once.
 # in the higher iterations, instead of calculating the same gradient many, many times it just calculates it once and paste it all over
 
+# generate island with one central mountain. One original tile, 8 gradient tiles.
+
+def fading_gradient(size):
+    blank = np.full((size, size), 1, dtype=float)
+    for x in range(size):
+        for y in range(size):
+            value = (((size - y) / size) ** 2)
+            blank[x, y] = value
+    return blank
+
+
+def rising_gradient(size):
+    blank = np.full((size, size), 0, dtype=float)
+    for x in range(size):
+        for y in range(size):
+            # value = np.sin(((y / size) * np.pi/2) - 0.5)
+            value = (y/size) ** 2
+            blank[x, y] = value
+    return blank
+
+
+
+
 def precompute_gradients(radius, iterations, offset):
     gradients = {}
     # flip = random.choice((-1, 1))  # to choose if the offset will dig down or bring up the terrain
-    offset = offset * -1
+    offset *= -1
     for i in range(0, iterations):
         gradients[i] = []
-        radius = radius - int(i / iterations)
+        radius = radius - (i // iterations)
         gradient = np.full((2 * radius + 1, 2 * radius + 1), 0, dtype=float)
 
         for dx in range(-int(radius), int(radius) + 1):
@@ -56,7 +79,7 @@ def precompute_gradients(radius, iterations, offset):
     return gradients
 
 
-def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations, gradients, seed):
+def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations, gradients, seed, fading, rising):
     tilemaps = {}
     seeds = []
     min_arr = []
@@ -64,13 +87,15 @@ def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations
     for i in range(tiles):
         variable_seed = seed * 2 ** i
         seeds.append(variable_seed)
+        if i == 0:
         # influence = np.full((size, size), 1, dtype=float)
-        tilemap = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
-
+            tilemap = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+        else:
+            tilemap = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+            tilemap = merge_tiles(tilemaps[i - 1], tilemap, fading, rising)
         tilemaps[i] = tilemap
 
         # getting the minimum and maximum of each tile
-
         min_arr.append(np.min(tilemaps[i]))
         max_arr.append(np.max(tilemaps[i]))
 
@@ -79,8 +104,8 @@ def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations
     tot_min = np.min(min_arr)
     tot_max = np.max(max_arr)
 
-    print(tot_min)
-    print(tot_max)
+
+
     return tilemaps
 
 
@@ -89,14 +114,14 @@ def generate_heightmap(size, base_height, radius, domain_offset, iterations, gra
     np.random.seed(seed)
 
     # initializing the heightmap with a base terrain height
-    heightmap = base_height.copy()
+    heightmap = base_height
 
     # midpoint of the map
     halfsize = [size // 2, size // 2]
 
     # i = index of iteration (which iteration it's simulating rn)
     for i in range(iterations):
-        for j in range(2 * i):  # more iterations = more points generated  j = number of circles per iteration
+        for j in range(i):  # more iterations = more points generated  j = number of circles per iteration
             x = random.randint(halfsize[0] - domain_offset, halfsize[0] + domain_offset)
             y = random.randint(halfsize[1] - domain_offset, halfsize[1] + domain_offset)
 
@@ -105,8 +130,7 @@ def generate_heightmap(size, base_height, radius, domain_offset, iterations, gra
             # apply gradients
             for dx in range(-radius, radius + 1):
                 for dy in range(-radius, radius + 1):
-                    if (x + dx) % size < size and (y + dy) % size < size:
-                        heightmap[(x + dx) % size, (y + dy) % size] += gradient[dx + radius, dy + radius]
+                    heightmap[(x + dx) % size, (y + dy) % size] += gradient[dx + radius, dy + radius]
 
             halfsize[0] = x
             halfsize[1] = y
@@ -118,6 +142,37 @@ def generate_heightmap(size, base_height, radius, domain_offset, iterations, gra
     max_height = np.max(heightmap)
     heightmap = (heightmap - min_height) / (max_height - min_height) * 255
     return heightmap
+
+
+def merge_tiles(tile1, tile2, gradient1, gradient2):
+    new_tile1 = tile1 * gradient1
+    # new_tile1_min = np.min(new_tile1)
+    # new_tile1_max = np.max(new_tile1)
+    # new_tile1_norm = (new_tile1 - new_tile1_min) / (new_tile1_max - new_tile1_min) * 256
+
+
+    new_tile2 = tile2 * gradient2
+    # new_tile2_min = np.min(new_tile2)
+    # new_tile2_max = np.max(new_tile2)
+    # new_tile2_norm = (new_tile2 - new_tile2_min) / (new_tile2_max - new_tile2_min) * 256
+
+    new_tile = new_tile1 + new_tile2
+    # new_tile_min = np.min(new_tile)
+    # new_tile_max = np.max(new_tile)
+
+    # final_tile = (new_tile - new_tile_min) / (new_tile_max - new_tile_min) * 256
+    test_tiles = [tile1, new_tile1, gradient1, tile2, new_tile2, gradient2, new_tile]
+
+    fig, axes = plt.subplots(1, len(test_tiles), figsize=(12, 6))
+    for i in range(len(test_tiles)):
+        axes[i].imshow(test_tiles[i], cmap='terrain')
+        axes[i].set_title(f'Tile {i + 1}')
+        axes[i].axis('off')
+
+    plt.tight_layout()
+    fig.subplots_adjust(wspace=0)
+    plt.show()
+    return new_tile
 
 
 def save_heightmap_as_image(heightmap, filename):
@@ -135,12 +190,15 @@ base_height = np.full((tile_size, tile_size), 255, dtype=float)  # initial heigh
 radius = 100  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
 offset = 100  # how much you want to dig down or bring up (negative numbers have better results
 domain_offset = 0  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
-iterations = 8  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 6739  # seed of the random number generator
+iterations = 10  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
+seed = 38990864  # seed of the random number generator
 tiles = 3
 
+fading_gradient = fading_gradient(tile_size)
+rising_gradient = rising_gradient(tile_size)
+
 gradients = precompute_gradients(radius, iterations, offset)
-tilemap = generate_tilemap(tiles, tile_size, base_height, radius, domain_offset, iterations, gradients, seed)
+tilemap = generate_tilemap(tiles, tile_size, base_height, radius, domain_offset, iterations, gradients, seed, fading_gradient, rising_gradient)
 
 name = random.randint(0, 100000)
 # z = np.array(heightmap)
@@ -162,7 +220,7 @@ for i in range(tiles):
     filename = f'heightmap{name + i}.png'
     save_heightmap_as_image(tilemap[i], filename)
     axes[i].imshow(tilemap[i], cmap='terrain')
-    axes[i].set_title('Tile 0')
+    axes[i].set_title(f'Tile {i + 1}')
     axes[i].axis('off')
 
 plt.tight_layout()
