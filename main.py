@@ -2,10 +2,7 @@
 # algorithm that generates terrain-like heightmaps
 # imagined by me, Daniele Chirico, July 15, 2024
 
-import numpy as np
-import random
-import matplotlib.pyplot as plt
-from PIL import Image
+
 
 # -----Process----- #
 # start with a flat heightmap filled with a base terrain height
@@ -38,26 +35,29 @@ from PIL import Image
 # in the higher iterations, instead of calculating the same gradient many, many times it just calculates it once and paste it all over
 
 # generate island with one central mountain. One original tile, 8 gradient tiles.
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+from PIL import Image
+
 
 def fading_gradient(size):
-    blank = np.full((size, size), 1, dtype=float)
+    blank = np.full((size, size), 0, dtype=float)
     for x in range(size):
         for y in range(size):
-            value = (((size - y) / size) ** 2)
+            value = (size - y) / size
             blank[x, y] = value
     return blank
 
 
 def rising_gradient(size):
-    blank = np.full((size, size), 0, dtype=float)
+    blank = np.full((size, size), 1, dtype=float)
     for x in range(size):
         for y in range(size):
             # value = np.sin(((y / size) * np.pi/2) - 0.5)
-            value = (y/size) ** 2
+            value = y / size
             blank[x, y] = value
     return blank
-
-
 
 
 def precompute_gradients(radius, iterations, offset):
@@ -85,24 +85,28 @@ def generate_tilemap(tiles, size, base_height, radius, domain_offset, iterations
     min_arr = []
     max_arr = []
     for i in range(tiles):
-        variable_seed = seed * 2 ** i
+        variable_seed = seed * (i + 1)
         seeds.append(variable_seed)
         if i == 0:
-        # influence = np.full((size, size), 1, dtype=float)
-            tilemap = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
-        else:
-            tilemap = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
-            tilemap = merge_tiles(tilemaps[i - 1], tilemap, fading, rising)
+            # influence = np.full((size, size), 1, dtype=float)
+            first_tile = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+            tilemap = first_tile
+        elif i % 2 != 0:
+            second_tile = generate_heightmap(size, base_height, radius, domain_offset, iterations, gradients, seeds[i])
+            tilemap = merge_tiles(tilemaps[i - 1], second_tile, fading, rising)
+        elif i % 2 == 0:
+            tilemap = second_tile
+
         tilemaps[i] = tilemap
 
-        # getting the minimum and maximum of each tile
-        min_arr.append(np.min(tilemaps[i]))
-        max_arr.append(np.max(tilemaps[i]))
-
-        # getting the minimum and maximum among the three tiles
-
-    tot_min = np.min(min_arr)
-    tot_max = np.max(max_arr)
+    #     # getting the minimum and maximum of each tile
+    #     min_arr.append(np.min(tilemaps[i]))
+    #     max_arr.append(np.max(tilemaps[i]))
+    #
+    #     # getting the minimum and maximum among the three tiles
+    #
+    # tot_min = np.min(min_arr)
+    # tot_max = np.max(max_arr)
 
 
 
@@ -145,28 +149,25 @@ def generate_heightmap(size, base_height, radius, domain_offset, iterations, gra
 
 
 def merge_tiles(tile1, tile2, gradient1, gradient2):
+
     new_tile1 = tile1 * gradient1
-    # new_tile1_min = np.min(new_tile1)
-    # new_tile1_max = np.max(new_tile1)
-    # new_tile1_norm = (new_tile1 - new_tile1_min) / (new_tile1_max - new_tile1_min) * 256
 
 
     new_tile2 = tile2 * gradient2
-    # new_tile2_min = np.min(new_tile2)
-    # new_tile2_max = np.max(new_tile2)
-    # new_tile2_norm = (new_tile2 - new_tile2_min) / (new_tile2_max - new_tile2_min) * 256
 
     new_tile = new_tile1 + new_tile2
     # new_tile_min = np.min(new_tile)
     # new_tile_max = np.max(new_tile)
-
+    #
     # final_tile = (new_tile - new_tile_min) / (new_tile_max - new_tile_min) * 256
-    test_tiles = [tile1, new_tile1, gradient1, tile2, new_tile2, gradient2, new_tile]
-
+    test_tiles = [tile1, new_tile1, gradient1, new_tile2, tile2, gradient2, new_tile]
+    save_heightmap_as_image(new_tile, 'new_tile.png')
+    save_heightmap_as_image(tile1, 'tile1.png')
+    save_heightmap_as_image(tile2, 'tile2.png')
     fig, axes = plt.subplots(1, len(test_tiles), figsize=(12, 6))
     for i in range(len(test_tiles)):
         axes[i].imshow(test_tiles[i], cmap='terrain')
-        axes[i].set_title(f'Tile {i + 1}')
+        axes[i].set_title(f'{seed * (i + i)}')
         axes[i].axis('off')
 
     plt.tight_layout()
@@ -185,14 +186,14 @@ def save_heightmap_as_image(heightmap, filename):
     image.save(filename)
 
 
-tile_size = 100  # size of the map
+tile_size = 200  # size of the map
 base_height = np.full((tile_size, tile_size), 255, dtype=float)  # initial height of the map
-radius = 100  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
+radius = 200  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
 offset = 100  # how much you want to dig down or bring up (negative numbers have better results
 domain_offset = 0  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
-iterations = 10  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 38990864  # seed of the random number generator
-tiles = 3
+iterations = 8  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
+seed = 1  # seed of the random number generator
+tiles = 5
 
 fading_gradient = fading_gradient(tile_size)
 rising_gradient = rising_gradient(tile_size)
@@ -217,10 +218,14 @@ name = random.randint(0, 100000)
 
 fig, axes = plt.subplots(1, len(tilemap), figsize=(12, 6))
 for i in range(tiles):
+    if i == 0 or i % 2 == 0:
+        axes[i].set_title(f'Tile {seed * (i + 1)}')
+    if i % 2 != 0:
+        axes[i].set_title(f'Tile {seed *  i}')
     filename = f'heightmap{name + i}.png'
     save_heightmap_as_image(tilemap[i], filename)
     axes[i].imshow(tilemap[i], cmap='terrain')
-    axes[i].set_title(f'Tile {i + 1}')
+
     axes[i].axis('off')
 
 plt.tight_layout()
