@@ -38,6 +38,7 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import math
 from PIL import Image
 
 
@@ -68,14 +69,18 @@ def precompute_gradients(size):
         for x in range(size):
             for y in range(size):
                 if i == 0:
-                    value = ((x / size) + (y / size)) / 2
-                    gradient[x, y] = value
+                    distance = math.sqrt(((x - size) ** 2) + ((y - size) ** 2))
+                    if distance <= radius:
+                        strenght = (1 - (distance / radius))
+                        gradient[x, y] = strenght
                 if i == 1:
                     value = x / size
                     gradient[x, y] = value
                 if i == 2:
-                    value = (((size - y) / size) + (x / size)) / 2
-                    gradient[x, y] = value
+                    distance = math.sqrt(((x-size) ** 2) + (y ** 2))
+                    if distance <= radius:
+                        strenght = (1 - (distance / radius))
+                        gradient[x, y] = strenght
                 if i == 3:
                     value = y / size
                     gradient[x, y] = value
@@ -86,14 +91,18 @@ def precompute_gradients(size):
                     value = (size - y) / size
                     gradient[x, y] = value
                 if i == 6:
-                    value = (y / size) + ((size - x) / size)
-                    gradient[x, y] = value
+                    distance = math.sqrt(((x) ** 2) + ((y - size) ** 2))
+                    if distance <= radius:
+                        strenght = (1 - (distance / radius))
+                        gradient[x, y] = strenght
                 if i == 7:
                     value = (size - x) / size
                     gradient[x, y] = value
                 if i == 8:
-                    value = ((size - y) / size) + ((size - x) / size)
-                    gradient[x, y] = value
+                    distance = math.sqrt((x ** 2) + (y ** 2))
+                    if distance <= radius:
+                        strenght = (1 - (distance / radius))
+                        gradient[x, y] = strenght
         gradients.append(gradient)
     return gradients
 
@@ -101,13 +110,15 @@ def precompute_gradients(size):
 def precompute_circles(radius, iterations, offset):
     circles = {}
     for i in range(0, iterations):
+        flip = random.choice((-1, 1))
+        offset *= flip
         radius = radius - (i // iterations)
         circle = np.full((2 * radius + 1, 2 * radius + 1), 0, dtype=float)
         for dx in range(-int(radius), int(radius) + 1):
             for dy in range(-int(radius), int(radius) + 1):
                 distance = np.sqrt((dx ** 2) + (dy ** 2))
                 if distance <= radius:
-                    strenght = (1 - (distance/radius)) * -offset
+                    strenght = (1 - (distance/radius)) * offset
                     circle[dx + radius, dy + radius] += strenght
         circles[i] = circle
     return circles
@@ -156,7 +167,7 @@ def generate_heightmap(size, radius, domain_offset, iterations, gradients):
 
 
 def merge_tiles(tile1, tile2, gradient1, gradient2):
-    # mertge two tiles by applying opposing gradients
+    # merge two tiles by applying opposing gradients
     new_tile1 = tile1 * gradient1
 
     new_tile2 = tile2 * gradient2
@@ -184,7 +195,7 @@ radius = 100  # initial radius of the circle around the chosen point (has to be 
 offset = 20  # how much you want to dig down or bring up (negative numbers have better results
 domain_offset = tile_size // 2  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
 iterations = 10  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 35764  # seed of the random number generator
+seed = 4578  # seed of the random number generator
 
 random.seed(seed)
 np.random.seed(seed)
@@ -197,7 +208,7 @@ name = random.randint(0, 100000)
 fig, axes = plt.subplots(3, 3, figsize=(6, 6))
 for x in range(3):
     for y in range(3):
-        axes[x, y].imshow(tilemap[(3 * x) + y], cmap='terrain')
+        axes[x, y].imshow(tilemap[(3 * x) + y], cmap='terrain', vmin=0, vmax=255)
         axes[x, y].axis('off')
 
 plt.tight_layout()
