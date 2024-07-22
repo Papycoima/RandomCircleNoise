@@ -91,7 +91,7 @@ def precompute_circles(r, offset, iterations):
     circles = {}
     for i in range(iterations):
         offset *= 1 / (i + 1)
-        r *= 1 / (i + 1)
+        r *= (((-i) / 7) + 1)
         r = int(r)
         if r > 0:
             circle = np.full((2 * r + 1, 2 * r + 1), 0, dtype=float)
@@ -128,9 +128,7 @@ def generate_heightmap(size, gradients):
 
     # i = index of iteration (which iteration it's simulating rn)
     for i in range(iterations):
-        for j in range(10 * i):  # more iterations = more points generated  j = number of circles per iteration
-            # x = random.randint(halfsize[0] - domain_offset, halfsize[0] + domain_offset)
-            # y = random.randint(halfsize[1] - domain_offset, halfsize[1] + domain_offset)
+        for j in range(20 * i):  # more iterations = more points generated  j = number of circles per iteration
 
             x = random.randint(0, size)
             y = random.randint(0, size)
@@ -146,12 +144,12 @@ def generate_heightmap(size, gradients):
 
             halfsize[0] = x
             halfsize[1] = y
-            domain_offset = 2 * r
 
-            # radius = radius - int(1/(i+1))
+    heightmap = -heightmap
     min_height = np.min(heightmap)
     max_height = np.max(heightmap)
-    heightmap = (heightmap - min_height) / (max_height - min_height) * 255
+    if min_height < 0 or max_height > 255:
+        heightmap = (heightmap - min_height) / (max_height - min_height) * 255
     return heightmap
 
 
@@ -172,7 +170,7 @@ random.seed(seed)
 np.random.seed(seed)
 name = random.randint(0, 100000)
 
-circles = precompute_circles(r=radius, offset=10, iterations=10)
+circles = precompute_circles(r=radius, offset=100, iterations=10)
 tilemap = generate_tilemap(size=tile_size, circles=circles)
 
 
