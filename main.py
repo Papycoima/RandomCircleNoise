@@ -42,26 +42,6 @@ import math
 from PIL import Image
 
 
-def fading_gradient(size):
-    blank = np.full((size, size), 1, dtype=float)
-    for x in range(size):
-        for y in range(size):
-            value = (size - y) / size
-            blank[x, y] = value
-    return blank
-
-
-def rising_gradient(size):
-    blank = np.full((size, size), 0, dtype=float)
-    for x in range(size):
-        for y in range(size):
-            value = y / size
-            blank[x, y] = value
-            # value = y / size
-            # blank[x, y] = value
-    return blank
-
-
 def precompute_gradients(size):
     gradients = []
     for i in range(0, 9):
@@ -107,57 +87,66 @@ def precompute_gradients(size):
     return gradients
 
 
-def precompute_circles(radius, iterations, offset):
+def precompute_circles(r, offset, iterations):
     circles = {}
-    for i in range(0, iterations):
-        flip = random.choice((-1, 1))
-        offset *= flip
-        radius = radius - (i // iterations)
-        circle = np.full((2 * radius + 1, 2 * radius + 1), 0, dtype=float)
-        for dx in range(-int(radius), int(radius) + 1):
-            for dy in range(-int(radius), int(radius) + 1):
-                distance = np.sqrt((dx ** 2) + (dy ** 2))
-                if distance <= radius:
-                    strenght = (1 - (distance/radius)) * offset
-                    circle[dx + radius, dy + radius] += strenght
-        circles[i] = circle
+    for i in range(iterations):
+        offset *= 1 / (i + 1)
+        r *= 1 / (i + 1)
+        r = int(r)
+        if r > 0:
+            circle = np.full((2 * r + 1, 2 * r + 1), 0, dtype=float)
+            for dx in range(-r, r + 1):
+                for dy in range(-r, r + 1):
+                    distance = np.sqrt((dx ** 2) + (dy ** 2))
+                    if distance <= r:
+                        strenght = (1 - (distance/r)) * offset
+                        circle[dx + r, dy + r] += strenght
+            circles[i] = circle
+        elif r <= 0:
+            break
     return circles
 
 
-def generate_tilemap(size, radius, domain_offset, iterations, circles):
+def generate_tilemap(size, circles):
     tilemaps = {}
     gradients = precompute_gradients(tile_size)
-    main_tile = generate_heightmap(size, radius, domain_offset, iterations, circles)
+    main_tile = generate_heightmap(size, circles)
     for i in range(0, 9):
         tilemap = main_tile * gradients[i]
         tilemaps[i] = tilemap
     return tilemaps
 
 
-def generate_heightmap(size, radius, domain_offset, iterations, gradients):
+def generate_heightmap(size, gradients):
     # initializing the heightmap with a base terrain height
-    heightmap = np.full((size, size), 255, dtype=float)
+    heightmap = np.full((size, size), 0, dtype=float)
+    domain_offset = 0
 
     # midpoint of the map
     halfsize = [size // 2, size // 2]
+    iterations = len(gradients)
 
     # i = index of iteration (which iteration it's simulating rn)
     for i in range(iterations):
-        for j in range(i):  # more iterations = more points generated  j = number of circles per iteration
-            x = random.randint(halfsize[0] - domain_offset, halfsize[0] + domain_offset)
-            y = random.randint(halfsize[1] - domain_offset, halfsize[1] + domain_offset)
+        for j in range(10 * i):  # more iterations = more points generated  j = number of circles per iteration
+            # x = random.randint(halfsize[0] - domain_offset, halfsize[0] + domain_offset)
+            # y = random.randint(halfsize[1] - domain_offset, halfsize[1] + domain_offset)
+
+            x = random.randint(0, size)
+            y = random.randint(0, size)
 
             gradient = gradients[i]
+            r = int(((len(gradient) - 1) / 2))
+            print(int(((len(gradient) - 1) / 2)))
 
             # apply gradients
-            for dx in range(-radius, radius + 1):
-                for dy in range(-radius, radius + 1):
-                    heightmap[(x + dx) % size, (y + dy) % size] += gradient[dx + radius, dy + radius]
+            for dx in range(-r, r + 1):
+                for dy in range(-r, r + 1):
+                    heightmap[(x + dx) % size, (y + dy) % size] += gradient[dx + r, dy + r]
 
             halfsize[0] = x
             halfsize[1] = y
-            domain_offset = radius
-            radius = radius - (i // iterations)
+            domain_offset = 2 * r
 
             # radius = radius - int(1/(i+1))
     min_height = np.min(heightmap)
@@ -166,50 +155,34 @@ def generate_heightmap(size, radius, domain_offset, iterations, gradients):
     return heightmap
 
 
-def merge_tiles(tile1, tile2, gradient1, gradient2):
-    # merge two tiles by applying opposing gradients
-    new_tile1 = tile1 * gradient1
-
-    new_tile2 = tile2 * gradient2
-
-    new_tile = new_tile1 + new_tile2
-
-    # plotting the tiles before and after the gradients for debug
-
-    test_tiles = [tile1, new_tile1, gradient1, new_tile2, tile2, gradient2, new_tile]
-    fig, axes = plt.subplots(1, len(test_tiles), figsize=(12, 6))
-    for i in range(len(test_tiles)):
-        axes[i].imshow(test_tiles[i], cmap='terrain')
-        axes[i].set_title(f'{seed * (i + i)}')
-        axes[i].axis('off')
-
-    plt.tight_layout()
-    fig.subplots_adjust(wspace=0)
-    plt.show()
-    return new_tile
+def save_heightmap_as_image(heightmap, filename):
+    # Create an image from the heightmap
+    image = Image.fromarray(heightmap.astype(np.uint8), mode='L')
+    image.save(filename)
 
 
-tile_size = 100  # size of the map
-base_height = np.full((tile_size, tile_size), 255, dtype=float)  # initial height of the map
-radius = 100  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
-offset = 20  # how much you want to dig down or bring up (negative numbers have better results
-domain_offset = tile_size // 2  # how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
-iterations = 10  # how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 4578  # seed of the random number generator
+tile_size = 300  # size of the map
+radius = 300  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
+# offset = how much you want to dig down or bring up (negative numbers have better results)
+# domain_offset = how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
+# iterations = how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
+seed = 3920768867  # seed of the random number generator
 
 random.seed(seed)
 np.random.seed(seed)
-
-circles = precompute_circles(radius, iterations, offset)
-tilemap = generate_tilemap(tile_size, radius, domain_offset, iterations, circles)
-
 name = random.randint(0, 100000)
+
+circles = precompute_circles(r=radius, offset=10, iterations=10)
+tilemap = generate_tilemap(size=tile_size, circles=circles)
+
 
 fig, axes = plt.subplots(3, 3, figsize=(6, 6))
 for x in range(3):
     for y in range(3):
+        save_heightmap_as_image(tilemap[(3 * x) + y], f'heightmap{name}.png')
         axes[x, y].imshow(tilemap[(3 * x) + y], cmap='terrain', vmin=0, vmax=255)
         axes[x, y].axis('off')
+        name += 1
 
 plt.tight_layout()
 fig.subplots_adjust(hspace=0)
