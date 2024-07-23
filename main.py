@@ -57,8 +57,8 @@ def precompute_gradients(size):
                     value = x / size
                     gradient[x, y] = value
                 if i == 2:
-                    distance = math.sqrt(((x-size) ** 2) + (y ** 2))
-                    if distance <= radius:
+                    distance = math.sqrt(((x - size) ** 2) + (y ** 2))
+                    if distance <= size:
                         strenght = (1 - (distance / size))
                         gradient[x, y] = strenght
                 if i == 3:
@@ -165,6 +165,11 @@ radius = 256  # initial radius of the circle around the chosen point (has to be 
 # domain_offset = how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
 # iterations = how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
 seed = 8675746  # seed of the random number generator
+
+# 36472423 isola del Napoli
+# 8675746 seed fico
+# 4718462
+
 
 random.seed(seed)
 np.random.seed(seed)
