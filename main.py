@@ -1,40 +1,4 @@
 
-# algorithm that generates terrain-like heightmaps
-# imagined by me, Daniele Chirico, July 15, 2024
-
-# -----Island Version----- #
-
-# -----Process----- #
-# start with a flat heightmap filled with a base terrain height
-# select a random point in that heightmap
-# take a random offset value, positive or negative
-# create a circle with a large enough radius that creates a hole or a bulge as tall as the offset
-# select points near the edge of the circe (points that belong to the "domain")
-# repeat process
-
-# -----Tile-ability-----#
-# at the moment it's not very tile-able as it's iterative, kinda like the square-diamond
-# I found a way to make it tile-able, it's just not very simple to implement
-# Since a single tile is generated as the surface of a torus, it can tile itself indefinitely
-# So you can iterate the same tile and just change the edge that's the furthest away from the edge in common
-# if the opposite edge gets modified, you can just mirror the newly generated tile about that edge to create a new tile that tiles in a similar fashion
-# or mirror, add a gradient of influence and re-simulate
-
-# -----Details----- #
-# radii should get smaller with each iteration (or not, depending on which one creates a better result)
-# number of circles should increase with each iteration
-# offset should get smaller with each iteration - I find that keeping the offset constant makes for a better result
-
-# -----Requirements----- #
-# has to be perfectly tilable
-# has to be somewhat fast (100x100 map with 100 radius and 10 generation takes approximately 12 seconds to generate)
-# has to rely on some seed (same seed = same heightmap)
-
-
-# precompute_gradients basically just calculates gradients for each and every radius that would be generated just once.
-# in the higher iterations, instead of calculating the same gradient many, many times it just calculates it once and paste it all over
-
-# generate island with one central mountain. One original tile, 8 gradient tiles.
 import numpy as np
 import random
 import matplotlib.pyplot as plt
@@ -120,13 +84,12 @@ def generate_tilemap(size, circles):
 def generate_heightmap(size, gradients):
     # initializing the heightmap with a base terrain height
     heightmap = np.full((size, size), 0, dtype=float)
-    domain_offset = 0
 
     # midpoint of the map
     halfsize = [size // 2, size // 2]
     iterations = len(gradients)
 
-    # i = index of iteration (which iteration it's simulating rn)
+    # i = index of iteration (which iteration it's simulating at the moment)
     for i in range(iterations):
         for j in range(20 * i):  # more iterations = more points generated  j = number of circles per iteration
 
@@ -159,20 +122,16 @@ def save_heightmap_as_image(heightmap, filename):
     image.save(filename)
 
 
-tile_size = 128  # size of the map
-radius = 256  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
-# offset = how much you want to dig down or bring up (negative numbers have better results)
-# domain_offset = how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
-# iterations = how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 8675746  # seed of the random number generator
+tile_size = 128  # size of the tile.
+radius = 256  # initial radius of the circle around the chosen point. larger values = smaller features.
+seed = 8675746  # seed of the random number generator.
 
 # 36472423 isola del Napoli
-# 8675746 seed fico
+# 8675746 seed fico size = 128, radius = 256
 # 4718462
 
 
 random.seed(seed)
-np.random.seed(seed)
 name = random.randint(0, 100000)
 
 circles = precompute_circles(r=radius, offset=100, iterations=10)
@@ -185,11 +144,12 @@ fig, axes = plt.subplots(3, 3, figsize=(6, 6))
 for x in range(3):
     for y in range(3):
         save_heightmap_as_image(tilemap[(3 * x) + y], f'heightmap{name}.png')
-        axes[x, y].imshow(tilemap[(3 * x) + y], cmap='terrain', vmin=0, vmax=255)
+        axes[x, y].imshow(tilemap[(3 * x) + y], cmap='grey', vmin=0, vmax=255)
         axes[x, y].axis('off')
         name += 1
 
 plt.tight_layout()
 fig.subplots_adjust(hspace=0)
 fig.subplots_adjust(wspace=0)
+plt.savefig(f'heightmap{name} final.png', bbox_inches='tight', pad_inches=0)
 plt.show()
