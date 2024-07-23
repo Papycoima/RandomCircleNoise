@@ -50,8 +50,8 @@ def precompute_gradients(size):
             for y in range(size):
                 if i == 0:
                     distance = math.sqrt(((x - size) ** 2) + ((y - size) ** 2))
-                    if distance <= radius:
-                        strenght = (1 - (distance / radius))
+                    if distance <= size:
+                        strenght = (1 - (distance / size))
                         gradient[x, y] = strenght
                 if i == 1:
                     value = x / size
@@ -59,7 +59,7 @@ def precompute_gradients(size):
                 if i == 2:
                     distance = math.sqrt(((x-size) ** 2) + (y ** 2))
                     if distance <= radius:
-                        strenght = (1 - (distance / radius))
+                        strenght = (1 - (distance / size))
                         gradient[x, y] = strenght
                 if i == 3:
                     value = y / size
@@ -71,17 +71,17 @@ def precompute_gradients(size):
                     value = (size - y) / size
                     gradient[x, y] = value
                 if i == 6:
-                    distance = math.sqrt(((x) ** 2) + ((y - size) ** 2))
-                    if distance <= radius:
-                        strenght = (1 - (distance / radius))
+                    distance = math.sqrt((x ** 2) + ((y - size) ** 2))
+                    if distance <= size:
+                        strenght = (1 - (distance / size))
                         gradient[x, y] = strenght
                 if i == 7:
                     value = (size - x) / size
                     gradient[x, y] = value
                 if i == 8:
                     distance = math.sqrt((x ** 2) + (y ** 2))
-                    if distance <= radius:
-                        strenght = (1 - (distance / radius))
+                    if distance <= size:
+                        strenght = (1 - (distance / size))
                         gradient[x, y] = strenght
         gradients.append(gradient)
     return gradients
@@ -159,12 +159,12 @@ def save_heightmap_as_image(heightmap, filename):
     image.save(filename)
 
 
-tile_size = 300  # size of the map
-radius = 300  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
+tile_size = 128  # size of the map
+radius = 256  # initial radius of the circle around the chosen point (has to be at least half of the tile size) larger values = smaller features = wider view
 # offset = how much you want to dig down or bring up (negative numbers have better results)
 # domain_offset = how close should the next-gen circles be from the first. It is initialized as half the map so the whole map is a candidate for the firs point
 # iterations = how many generations to compute (low values make for crisper lines, high values make for more fractal-like appearance
-seed = 3920768867  # seed of the random number generator
+seed = 8675746  # seed of the random number generator
 
 random.seed(seed)
 np.random.seed(seed)
@@ -175,6 +175,8 @@ tilemap = generate_tilemap(size=tile_size, circles=circles)
 
 
 fig, axes = plt.subplots(3, 3, figsize=(6, 6))
+
+
 for x in range(3):
     for y in range(3):
         save_heightmap_as_image(tilemap[(3 * x) + y], f'heightmap{name}.png')
