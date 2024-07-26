@@ -14,4 +14,4 @@ The algorithm relies on a seed, so the same seed will produce the same heightmap
 "seed", as already said, is the seed of the algorithm. It is used to set up the "random" module, which will then randomly choose all the points on the tile.
 
 ### Output
-The program outputs .PNGs of both each individual tile, named "heightmap" followed by random numbers, and the whole 3x3 grid heightmap, named "heightmap"-random numbers-"final".
+The program outputs a .PNG file that contains the whole 3x3 grid heightmap, named "heightmap"-random numbers-"final". Its sidelenght is three times the one of a single tile.

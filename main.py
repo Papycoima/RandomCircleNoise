@@ -83,7 +83,7 @@ def generate_tilemap(size, circles):
 
 def generate_heightmap(size, gradients):
     # initializing the heightmap with a base terrain height
-    heightmap = np.full((size, size), 0, dtype=float)
+    heightmap = np.full((size, size), 128, dtype=float)
 
     # midpoint of the map
     halfsize = [size // 2, size // 2]
@@ -116,6 +116,20 @@ def generate_heightmap(size, gradients):
     return heightmap
 
 
+def join_tiles(tile_arr):
+    sidelength = len(tile_arr)
+    resolution = len(tile_arr[0])
+    final_heightmap = np.full((resolution * 3, resolution * 3), 0, dtype=float)
+    for i in range(sidelength // 3):
+        for y in range(resolution):
+            for j in range(sidelength // 3):
+                tile = tile_arr[(3 * i) + j]
+                for x in range(resolution):
+                    value = tile[y, x]
+                    final_heightmap[y + (resolution * i), x + (resolution * j)] = value
+    return final_heightmap
+
+
 def save_heightmap_as_image(heightmap, filename):
     # Create an image from the heightmap
     image = Image.fromarray(heightmap.astype(np.uint8), mode='L')
@@ -128,6 +142,7 @@ seed = 8675746  # seed of the random number generator.
 
 # 36472423 isola del Napoli
 # 8675746 seed fico size = 128, radius = 256
+# 456894576 size = 128, radius = 256
 # 4718462
 
 
@@ -136,20 +151,12 @@ name = random.randint(0, 100000)
 
 circles = precompute_circles(r=radius, offset=100, iterations=10)
 tilemap = generate_tilemap(size=tile_size, circles=circles)
+final_tilemap = join_tiles(tilemap)
+
+save_heightmap_as_image(final_tilemap, f'heightmap{name} final.png')
 
 
-fig, axes = plt.subplots(3, 3, figsize=(6, 6))
-
-
-for x in range(3):
-    for y in range(3):
-        save_heightmap_as_image(tilemap[(3 * x) + y], f'heightmap{name}.png')
-        axes[x, y].imshow(tilemap[(3 * x) + y], cmap='grey', vmin=0, vmax=255)
-        axes[x, y].axis('off')
-        name += 1
-
-plt.tight_layout()
-fig.subplots_adjust(hspace=0)
-fig.subplots_adjust(wspace=0)
-plt.savefig(f'heightmap{name} final.png', bbox_inches='tight', pad_inches=0)
+plt.imshow(final_tilemap, cmap='terrain')
+plt.colorbar()
+plt.title('Heightmap')
 plt.show()
